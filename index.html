@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-950 text-white font-sans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIK RACE – BALAPAN MASTER TEKNOLOGI | SMP NAWA KARTIKA</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Arcade Racing View -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            cyan: '#00f0ff',
+                            pink: '#ff007f',
+                            yellow: '#ffea00',
+                            purple: '#7000ff',
+                            dark: '#0a0d18'
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite alternate',
+                        'speed-lines': 'speedLines 0.2s linear infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 15px rgba(0, 240, 255, 0.4)' },
+                            '100%': { boxShadow: '0 0 35px rgba(255, 0, 127, 0.8)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-8px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            user-select: none;
+            overflow: hidden;
+            background-color: #080a10;
+        }
+        .glass-panel {
+            background: rgba(13, 18, 36, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-panel-neon {
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.15);
+        }
+        .speed-overlay {
+            background: repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255, 255, 255, 0.1) 50px, rgba(255, 255, 255, 0.1) 52px);
+            pointer-events: none;
+        }
+        .text-glow-cyan {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.7), 0 0 20px rgba(0, 240, 255, 0.5);
+        }
+        .text-glow-pink {
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.7), 0 0 20px rgba(255, 0, 127, 0.5);
+        }
+        .text-glow-yellow {
+            text-shadow: 0 0 10px rgba(255, 234, 0, 0.7);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.4); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.8); }
+    </style>
+</head>
+
+<body class="h-full w-full relative flex flex-col justify-between select-none">
+
+    <div id="canvas-container" class="absolute inset-0 z-0"></div>
+
+    <!-- Speed Lines Overlay -->
+    <div id="speed-lines-effect" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-300 z-10 speed-overlay"></div>
+
+    <!-- TOP NAVIGATION BAR / BRANDING -->
+    <header class="relative z-20 flex items-center justify-between p-4 bg-slate-950/80 backdrop-blur-md border-b border-cyan-500/30">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyan-500 to-pink-500 flex items-center justify-center shadow-lg shadow-cyan-500/30 font-orbitron font-extrabold text-xl text-black">
+                <i class="fa-solid fa-flag-checkered"></i>
+            </div>
+            <div>
+                <h1 class="font-orbitron font-black text-lg sm:text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-yellow-300 to-pink-500">
+                    TIK RACE
+                </h1>
+                <p class="text-xs text-cyan-300 font-semibold tracking-wide flex items-center gap-1">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    SMP NAWA KARTIKA • KELAS 8
+                </p>
+            </div>
+        </div>
+
+        <!-- Quick Controls (Audio, Classroom Mode, Settings) -->
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <button id="btn-classroom-mode" onclick="toggleClassroomMode()" title="Classroom Mode (Lower Volume)" class="px-3 py-1.5 rounded-lg glass-panel text-xs font-semibold text-slate-300 hover:text-yellow-300 border border-slate-700 hover:border-yellow-400 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-graduation-cap text-yellow-400"></i>
+                <span class="hidden sm:inline">Classroom Mode:</span>
+                <span id="classroom-status" class="text-slate-400">OFF</span>
+            </button>
+
+            <button id="btn-audio-toggle" onclick="toggleAudio()" title="Toggle Sound" class="w-9 h-9 rounded-lg glass-panel flex items-center justify-center text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition">
+                <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+
+            <button onclick="openModal('modal-settings')" class="w-9 h-9 rounded-lg glass-panel flex items-center justify-center text-slate-300 border border-slate-700 hover:bg-slate-800 transition">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="relative z-20 flex-1 flex flex-col items-center justify-center p-4">
+
+        <!-- 1. MAIN MENU SCREEN -->
+        <div id="screen-main-menu" class="w-full max-w-4xl flex flex-col items-center text-center space-y-6">
+            <div class="space-y-2 animate-float">
+                <div class="inline-block px-4 py-1 rounded-full bg-pink-500/20 border border-pink-500/50 text-pink-300 text-xs font-bold uppercase tracking-widest mb-2 shadow-lg shadow-pink-500/20">
+                    ⚡ Balapan Master Teknologi
+                </div>
+                <h2 class="font-orbitron font-black text-4xl sm:text-6xl md:text-7xl tracking-wider text-transparent bg-clip-text bg-gradient-to-br from-white via-cyan-300 to-cyan-500 text-glow-cyan">
+                    TIK RACE
+                </h2>
+                <p class="text-slate-300 max-w-xl mx-auto text-sm sm:text-base font-medium">
+                    “Jawab Cepat, Melaju Cepat, Jadilah TIK MASTER!”<br>
+                    Uji kemampuan Pengolah Kata & Pengolah Angka dalam ajang balap futuristik SMP Nawa Kartika.
+                </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-md pt-4">
+                <button onclick="prepareSinglePlayer()" class="group relative px-6 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-orbitron font-bold text-lg text-slate-950 hover:text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/60 hover:-translate-y-0.5 active:translate-y-0 transition duration-200 overflow-hidden flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-user-ninja text-xl group-hover:scale-110 transition"></i>
+                    SINGLE PLAYER (VS AI)
+                </button>
+
+                <button onclick="prepareMultiplayer()" class="group relative px-6 py-4 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 font-orbitron font-bold text-lg text-white shadow-lg shadow-pink-500/30 hover:shadow-pink-500/60 hover:-translate-y-0.5 active:translate-y-0 transition duration-200 overflow-hidden flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-users-rays text-xl group-hover:scale-110 transition"></i>
+                    MULTIPLAYER (PvP)
+                </button>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-3 pt-2">
+                <button onclick="openModal('modal-howtoplay')" class="px-4 py-2 rounded-lg glass-panel text-xs font-bold text-slate-300 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/50 transition flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question text-cyan-400"></i> Cara Bermain
+                </button>
+                <button onclick="showLeaderboard()" class="px-4 py-2 rounded-lg glass-panel text-xs font-bold text-slate-300 hover:text-yellow-300 border border-slate-700 hover:border-yellow-500/50 transition flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-yellow-400"></i> Leaderboard
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. CHARACTER & TRACK SETUP SCREEN -->
+        <div id="screen-setup" class="hidden w-full max-w-5xl glass-panel-neon rounded-2xl p-6 space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-center border-b border-slate-700/80 pb-4 gap-2">
+                <div>
+                    <h3 class="font-orbitron font-extrabold text-2xl text-cyan-300 flex items-center gap-2">
+                        <i class="fa-solid fa-helmet-safety text-yellow-400"></i> PERSIAPAN BALAPAN
+                    </h3>
+                    <p class="text-xs text-slate-400">Pilih Karakter Anime Original & Lintasan Futuristik Anda</p>
+                </div>
+                <div id="setup-mode-badge" class="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400 text-cyan-300 font-orbitron text-xs font-bold">
+                    MODE: SINGLE PLAYER
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Character Picker -->
+                <div class="space-y-3">
+                    <label class="block font-orbitron text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-user-astronaut text-pink-400"></i> PILIH RACER & MOBIL
+                    </label>
+                    <div id="character-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto pr-1">
+                        <!-- Dynamic Character Cards populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Track Picker -->
+                <div class="space-y-3">
+                    <label class="block font-orbitron text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-route text-yellow-400"></i> PILIH LINTASAN
+                    </label>
+                    <div id="track-list" class="space-y-2.5 max-h-[260px] overflow-y-auto pr-1">
+                        <!-- Dynamic Track Cards populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player Name & Confirmation -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                <div class="w-full sm:w-1/2">
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">NAMA PEMAIN / NAMA SISWA:</label>
+                    <input type="text" id="input-player-name" maxlength="16" placeholder="Masukkan nama kamu..." class="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-cyan-300 font-bold focus:outline-none focus:border-cyan-400 transition text-sm">
+                </div>
+
+                <div class="flex gap-3 w-full sm:w-auto justify-end">
+                    <button onclick="switchScreen('screen-main-menu')" class="px-5 py-2.5 rounded-xl glass-panel text-slate-300 font-bold hover:bg-slate-800 transition text-sm">
+                        BATAL
+                    </button>
+                    <button id="btn-confirm-setup" onclick="proceedFromSetup()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 font-orbitron font-extrabold text-slate-950 hover:text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition text-sm flex items-center gap-2">
+                        LANJUT <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. MULTIPLAYER LOBBY SCREEN -->
+        <div id="screen-pvp-lobby" class="hidden w-full max-w-3xl glass-panel-neon rounded-2xl p-6 space-y-6">
+            <div class="text-center space-y-2">
+                <h3 class="font-orbitron font-extrabold text-3xl text-pink-400 text-glow-pink">
+                    LOBBY BALAP ONLINE PvP
+                </h3>
+                <p class="text-xs text-slate-300">Ajak Teman Sekelas SMP Nawa Kartika Bertanding Realtime!</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Create Room Panel -->
+                <div class="glass-panel rounded-xl p-5 border border-slate-700 space-y-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 font-orbitron text-cyan-300 font-bold text-sm mb-1">
+                            <i class="fa-solid fa-plus-circle text-cyan-400"></i> BUAT ROOM BARU
+                        </div>
+                        <p class="text-xs text-slate-400">Jadilah Host dan bagikan Kode Room ke temanmu.</p>
+                    </div>
+                    <button onclick="createPvPRoom()" class="w-full py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 font-orbitron font-bold text-slate-950 hover:text-white transition shadow-md shadow-cyan-500/20 text-sm">
+                        BUAT ROOM SEKARANG
+                    </button>
+                </div>
+
+                <!-- Join Room Panel -->
+                <div class="glass-panel rounded-xl p-5 border border-slate-700 space-y-4">
+                    <div>
+                        <div class="flex items-center gap-2 font-orbitron text-pink-300 font-bold text-sm mb-1">
+                            <i class="fa-solid fa-right-to-bracket text-pink-400"></i> GABUNG ROOM
+                        </div>
+                        <p class="text-xs text-slate-400">Masukkan 4 digit Kode Room yang diberikan Host.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-room-code" maxlength="4" placeholder="KODE" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 font-orbitron font-extrabold text-center tracking-widest text-pink-400 uppercase text-lg focus:outline-none focus:border-pink-500">
+                        <button onclick="joinPvPRoom()" class="px-5 py-2 rounded-lg bg-pink-500 font-orbitron font-bold text-white hover:bg-pink-600 transition text-sm">
+                            GABUNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Room Waiting Room Box -->
+            <div id="pvp-room-details" class="hidden glass-panel rounded-xl p-5 border border-cyan-500/40 space-y-4">
+                <div class="flex flex-col sm:flex-row items-center justify-between border-b border-slate-800 pb-3 gap-2">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-slate-400">KODE ROOM:</span>
+                        <span id="display-room-code" class="font-orbitron font-black text-2xl text-yellow-400 tracking-wider text-glow-yellow">----</span>
+                        <button onclick="copyRoomCode()" class="text-slate-400 hover:text-cyan-300 text-xs px-2 py-1 glass-panel rounded">
+                            <i class="fa-solid fa-copy"></i> Salin
+                        </button>
+                    </div>
+                    <div id="room-status-badge" class="px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-300 text-xs font-bold font-orbitron">
+                        MENUNGGU LAWAN...
+                    </div>
+                </div>
+
+                <!-- Players Status List -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div class="p-3 rounded-lg bg-slate-900/80 border border-cyan-500/30 flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-bold text-cyan-300">P1</div>
+                        <div>
+                            <div id="p1-name" class="font-bold text-slate-200 text-sm">Player 1</div>
+                            <div id="p1-status" class="text-xs text-emerald-400 font-semibold">Ready (Host)</div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 rounded-lg bg-slate-900/80 border border-pink-500/30 flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-pink-500/20 border border-pink-400 flex items-center justify-center font-bold text-pink-300">P2</div>
+                        <div>
+                            <div id="p2-name" class="font-bold text-slate-400 text-sm">Belum Ada Lawan</div>
+                            <div id="p2-status" class="text-xs text-slate-500 font-semibold">Menunggu...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center pt-3 border-t border-slate-800">
+                    <button onclick="leavePvPRoom()" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-red-400 transition">
+                        <i class="fa-solid fa-arrow-left"></i> Keluar Lobby
+                    </button>
+                    <button id="btn-start-pvp" onclick="startPvPGame()" disabled class="px-6 py-2.5 rounded-xl bg-slate-700 text-slate-500 cursor-not-allowed font-orbitron font-bold transition text-sm">
+                        MULAI BALAPAN PvP!
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-center pt-2">
+                <button onclick="switchScreen('screen-setup')" class="text-xs text-slate-400 hover:text-slate-200 underline">
+                    Kembali ke Pengaturan Karakter & Track
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. COUNTDOWN OVERLAY -->
+        <div id="countdown-overlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md">
+            <div id="countdown-number" class="font-orbitron font-black text-8xl sm:text-9xl text-transparent bg-clip-text bg-gradient-to-tr from-yellow-300 via-pink-500 to-cyan-400 animate-bounce text-glow-cyan">
+                3
+            </div>
+            <div id="countdown-subtext" class="font-orbitron font-bold text-xl text-slate-200 mt-4 tracking-widest">
+                SIAP-SIAP BALAPAN TIK!
+            </div>
+        </div>
+
+        <!-- 5. ACTIVE GAMEPLAY HUD -->
+        <div id="screen-hud" class="hidden w-full max-w-5xl h-full flex flex-col justify-between py-2 space-y-3 pointer-events-none">
+            
+            <!-- HUD TOP BAR (Score, Lap Progress, Opponent Progress) -->
+            <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3 pointer-events-auto">
+                <!-- Player Stats Panel -->
+                <div class="glass-panel-neon rounded-xl p-3 flex items-center justify-between border-l-4 border-l-cyan-400">
+                    <div>
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">PEMAIN / RACER</div>
+                        <div id="hud-player-name" class="font-orbitron font-extrabold text-cyan-300 text-sm truncate max-w-[120px]">Racer</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SKOR UTAMA</div>
+                        <div id="hud-player-score" class="font-orbitron font-black text-2xl text-yellow-300 text-glow-yellow">0</div>
+                    </div>
+                </div>
+
+                <!-- Match Telemetry & Speedometer -->
+                <div class="glass-panel rounded-xl p-2.5 flex flex-col items-center justify-center text-center border border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="text-center">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">SPEED</span>
+                            <div id="hud-speed-val" class="font-orbitron font-extrabold text-lg text-emerald-400">120 KM/H</div>
+                        </div>
+                        <div class="h-6 w-px bg-slate-700"></div>
+                        <div class="text-center">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">COMBO</span>
+                            <div id="hud-combo-val" class="font-orbitron font-extrabold text-lg text-pink-400">x0</div>
+                        </div>
+                        <div class="h-6 w-px bg-slate-700"></div>
+                        <div class="text-center">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">SOAL</span>
+                            <div id="hud-question-count" class="font-orbitron font-extrabold text-lg text-cyan-300">1/20</div>
+                        </div>
+                    </div>
+                    <!-- Track Progress Bar -->
+                    <div class="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden border border-slate-700">
+                        <div id="hud-progress-bar" class="bg-gradient-to-r from-cyan-400 to-pink-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- Opponent Stats Panel -->
+                <div class="glass-panel-neon rounded-xl p-3 flex items-center justify-between border-r-4 border-r-pink-500">
+                    <div>
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">LAWAN / COMPETITOR</div>
+                        <div id="hud-opponent-name" class="font-orbitron font-extrabold text-pink-300 text-sm truncate max-w-[120px]">AI Bot</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SKOR LAWAN</div>
+                        <div id="hud-opponent-score" class="font-orbitron font-black text-2xl text-slate-300">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HUD CENTER: FEEDBACK BANNER (TURBO / WRONG / SPEED BONUS) -->
+            <div id="hud-feedback-banner" class="self-center px-6 py-2 rounded-full glass-panel-neon font-orbitron font-black text-lg sm:text-xl text-center tracking-wider opacity-0 transition duration-200 transform scale-90 pointer-events-none shadow-xl">
+                TURBO BOOST! +150
+            </div>
+
+            <!-- HUD BOTTOM: QUIZ QUESTION PANEL -->
+            <div id="hud-quiz-panel" class="w-full glass-panel-neon rounded-2xl p-4 sm:p-5 pointer-events-auto border-t-2 border-t-cyan-400 space-y-4 shadow-2xl">
+                <!-- Question Header & Timer -->
+                <div class="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
+                    <div class="flex items-center space-x-2">
+                        <span id="quiz-category-badge" class="px-2.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 font-orbitron font-bold text-[11px] border border-cyan-500/40">
+                            PENGOLAH KATA
+                        </span>
+                        <span id="quiz-difficulty-badge" class="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-orbitron font-bold text-[10px]">
+                            LEVEL 1 - MUDAH
+                        </span>
+                    </div>
+
+                    <!-- Timer Bar -->
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-stopwatch text-yellow-400 text-sm animate-pulse"></i>
+                        <span id="quiz-timer-text" class="font-orbitron font-black text-lg text-yellow-300 min-w-[28px] text-right">15s</span>
+                    </div>
+                </div>
+
+                <!-- Timer Visual Bar -->
+                <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                    <div id="quiz-timer-bar" class="bg-gradient-to-r from-emerald-400 via-yellow-400 to-red-500 h-full w-full transition-all duration-100"></div>
+                </div>
+
+                <!-- Question Text -->
+                <div id="quiz-question-text" class="font-sans font-bold text-base sm:text-lg text-slate-100 leading-snug min-h-[48px]">
+                    Memuat pertanyaan Informatika TIK Kelas 8...
+                </div>
+
+                <!-- Answer Options (A, B, C, D) -->
+                <div id="quiz-options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <!-- Dynamic Answer Buttons rendered by JS -->
+                </div>
+
+                <!-- Brief Explanation Footer (Hidden during timer, shown briefly after answer) -->
+                <div id="quiz-explanation-box" class="hidden p-2.5 rounded-lg bg-slate-900/90 border border-cyan-500/30 text-xs text-cyan-200 flex items-start gap-2">
+                    <i class="fa-solid fa-lightbulb text-yellow-400 mt-0.5"></i>
+                    <span id="quiz-explanation-text">Penjelasan jawaban...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. MATCH RESULT SCREEN -->
+        <div id="screen-result" class="hidden w-full max-w-3xl glass-panel-neon rounded-2xl p-6 space-y-6 text-center my-auto">
+            <div class="space-y-2">
+                <div id="result-badge" class="inline-block px-4 py-1 rounded-full bg-yellow-400/20 border border-yellow-400 text-yellow-300 font-orbitron font-extrabold text-xs uppercase tracking-widest">
+                    🏆 HASIL FINISH BALAPAN TIK
+                </div>
+                <h3 id="result-title" class="font-orbitron font-black text-4xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-cyan-300 to-pink-500 text-glow-yellow">
+                    VICTORY!
+                </h3>
+                <p id="result-subtitle" class="text-sm text-slate-300">
+                    Selamat! Kamu berhasil meraih predikat TIK MASTER SMP Nawa Kartika!
+                </p>
+            </div>
+
+            <!-- Score Cards Overview -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="glass-panel p-3 rounded-xl border border-slate-700">
+                    <div class="text-[10px] text-slate-400 font-semibold uppercase">TOTAL SKOR</div>
+                    <div id="res-total-score" class="font-orbitron font-black text-2xl text-yellow-300">0</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-slate-700">
+                    <div class="text-[10px] text-slate-400 font-semibold uppercase">BENAR / SALAH</div>
+                    <div id="res-correct-wrong" class="font-orbitron font-bold text-xl text-emerald-400">0 / 0</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-slate-700">
+                    <div class="text-[10px] text-slate-400 font-semibold uppercase">AKURASI</div>
+                    <div id="res-accuracy" class="font-orbitron font-bold text-xl text-cyan-300">0%</div>
+                </div>
+                <div class="glass-panel p-3 rounded-xl border border-slate-700">
+                    <div class="text-[10px] text-slate-400 font-semibold uppercase">BEST COMBO</div>
+                    <div id="res-best-combo" class="font-orbitron font-bold text-xl text-pink-400">0x</div>
+                </div>
+            </div>
+
+            <!-- Detailed Breakdown -->
+            <div class="glass-panel rounded-xl p-4 text-left text-xs space-y-2 border border-slate-800">
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Bonus Kecepatan Waktu:</span>
+                    <span id="res-speed-bonus" class="font-orbitron font-bold text-cyan-300">+0 Poin</span>
+                </div>
+                <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                    <span class="text-slate-400">Bonus Combo Streak:</span>
+                    <span id="res-combo-bonus" class="font-orbitron font-bold text-pink-300">+0 Poin</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Rata-rata Waktu Menjawab:</span>
+                    <span id="res-avg-time" class="font-orbitron font-bold text-yellow-300">0.0 detik</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap justify-center gap-3 pt-2">
+                <button onclick="restartGame()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-orbitron font-bold text-slate-950 hover:text-white shadow-lg transition text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> MAIN LAGI
+                </button>
+                <button onclick="showLeaderboard()" class="px-5 py-3 rounded-xl glass-panel text-yellow-300 font-orbitron font-bold hover:bg-slate-800 transition text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-trophy"></i> LEADERBOARD
+                </button>
+                <button onclick="switchScreen('screen-main-menu')" class="px-5 py-3 rounded-xl glass-panel text-slate-300 font-bold hover:bg-slate-800 transition text-sm">
+                    MENU UTAMA
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: HOW TO PLAY -->
+    <div id="modal-howtoplay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="w-full max-w-2xl glass-panel-neon rounded-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-orbitron font-extrabold text-xl text-cyan-300 flex items-center gap-2">
+                    <i class="fa-solid fa-book-open text-yellow-400"></i> CARA BERMAIN TIK RACE
+                </h3>
+                <button onclick="closeModal('modal-howtoplay')" class="text-slate-400 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                <div class="p-3 rounded-lg bg-slate-900/80 border border-cyan-500/30 space-y-1">
+                    <h4 class="font-orbitron font-bold text-cyan-300 text-sm">1. Mendorong Mobil Dengan Pengetahuan</h4>
+                    <p>Jawab pertanyaan TIK (Word, Excel, Spreadsheet & Integrasi Aplikasi) untuk melajukan mobil balap kamu di lintasan futuristik.</p>
+                </div>
+
+                <div class="p-3 rounded-lg bg-slate-900/80 border border-yellow-500/30 space-y-1">
+                    <h4 class="font-orbitron font-bold text-yellow-300 text-sm">2. Formula Skor & Bonus Cepat</h4>
+                    <ul class="list-disc list-inside space-y-1 text-slate-300">
+                        <li><b>Jawaban Benar:</b> +100 Poin dasar.</li>
+                        <li><b>Bonus Kecepatan:</b> 0-3 detik (+50 Poin), 4-6 detik (+30 Poin), 7-10 detik (+10 Poin).</li>
+                        <li><b>Bonus Combo:</b> 3 Streak (+30 Poin), 5 Streak (+50 Poin), 10 Streak (+100 Poin).</li>
+                        <li>Jawaban salah tidak mengurangi skor, namun reset combo momentum!</li>
+                    </ul>
+                </div>
+
+                <div class="p-3 rounded-lg bg-slate-900/80 border border-pink-500/30 space-y-1">
+                    <h4 class="font-orbitron font-bold text-pink-300 text-sm">3. Mode Multiplayer Online PvP</h4>
+                    <p>Buat Room dan bagikan 4 digit Kode Room ke teman sekelas untuk adu kecepatan dan kecerdasan secara realtime!</p>
+                </div>
+            </div>
+
+            <div class="text-right pt-2">
+                <button onclick="closeModal('modal-howtoplay')" class="px-5 py-2 rounded-lg bg-cyan-500 font-bold text-slate-950 text-xs">
+                    SAYA MENGERTI
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: LEADERBOARD -->
+    <div id="modal-leaderboard" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="w-full max-w-2xl glass-panel-neon rounded-2xl p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-orbitron font-extrabold text-xl text-yellow-300 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-yellow-400"></i> PAPAN PERINGKAT TIK MASTER
+                </h3>
+                <button onclick="closeModal('modal-leaderboard')" class="text-slate-400 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto pr-1">
+                <table class="w-full text-left text-xs">
+                    <thead class="font-orbitron text-slate-400 border-b border-slate-800">
+                        <tr>
+                            <th class="py-2 px-2">RANK</th>
+                            <th class="py-2 px-2">NAMA SISWA</th>
+                            <th class="py-2 px-2">SKOR</th>
+                            <th class="py-2 px-2">AKURASI</th>
+                            <th class="py-2 px-2">BEST COMBO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-tbody" class="divide-y divide-slate-800/60 font-semibold text-slate-200">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-right pt-2 border-t border-slate-800">
+                <button onclick="closeModal('modal-leaderboard')" class="px-5 py-2 rounded-lg glass-panel text-xs text-slate-300">
+                    TUTUP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SETTINGS -->
+    <div id="modal-settings" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="w-full max-w-md glass-panel-neon rounded-2xl p-6 space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-orbitron font-extrabold text-lg text-cyan-300 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-cyan-400"></i> PENGATURAN GAME
+                </h3>
+                <button onclick="closeModal('modal-settings')" class="text-slate-400 hover:text-white text-xl">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <!-- Music Volume -->
+                <div class="space-y-1">
+                    <div class="flex justify-between font-semibold">
+                        <span class="text-slate-300">VOLUME MUSIK:</span>
+                        <span id="volume-music-label" class="text-cyan-300">70%</span>
+                    </div>
+                    <input type="range" id="slider-music" min="0" max="100" value="70" oninput="updateAudioSettings()" class="w-full accent-cyan-400 bg-slate-800 rounded-lg">
+                </div>
+
+                <!-- SFX Volume -->
+                <div class="space-y-1">
+                    <div class="flex justify-between font-semibold">
+                        <span class="text-slate-300">VOLUME SFX:</span>
+                        <span id="volume-sfx-label" class="text-pink-300">80%</span>
+                    </div>
+                    <input type="range" id="slider-sfx" min="0" max="100" value="80" oninput="updateAudioSettings()" class="w-full accent-pink-500 bg-slate-800 rounded-lg">
+                </div>
+
+                <!-- Classroom Mode Checkbox -->
+                <div class="p-3 rounded-lg glass-panel flex items-center justify-between border border-slate-800">
+                    <div>
+                        <div class="font-bold text-slate-200">Classroom Mode</div>
+                        <div class="text-[10px] text-slate-400">Volume lebih lembut saat pembelajaran di kelas</div>
+                    </div>
+                    <input type="checkbox" id="chk-classroom-mode" onchange="toggleClassroomModeCheckbox(this.checked)" class="w-4 h-4 accent-yellow-400">
+                </div>
+            </div>
+
+            <div class="text-right pt-2">
+                <button onclick="closeModal('modal-settings')" class="px-5 py-2 rounded-lg bg-cyan-500 font-bold text-slate-950 text-xs">
+                    SIMPAN & TUTUP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration fallback setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tik-race-nawa-kartika';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyDemoDummyKeyForFallbackOnly12345",
+            authDomain: "tik-race-demo.firebaseapp.com",
+            projectId: "tik-race-demo",
+            storageBucket: "tik-race-demo.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.firebaseApp = app;
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.appId = appId;
+
+        // Authenticate User
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                console.log("Firebase Auth Success:", auth.currentUser?.uid);
+            } catch (err) {
+                console.warn("Auth initialization fallback mode active:", err);
+            }
+        }
+        initAuth();
+
+        // Realtime Firestore Helpers for PvP
+        window.pvpSyncDoc = null;
+        window.pvpUnsubscribe = null;
+
+        window.createFirestoreRoom = async function(roomCode, hostData) {
+            if (!auth.currentUser) await initAuth();
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
+            const payload = {
+                roomCode,
+                createdAt: Date.now(),
+                status: 'WAITING',
+                hostId: auth.currentUser ? auth.currentUser.uid : 'host_' + Date.now(),
+                p1: hostData,
+                p2: null,
+                currentQIndex: 0
+            };
+            await setDoc(roomRef, payload);
+            return roomRef;
+        };
+
+        window.joinFirestoreRoom = async function(roomCode, guestData) {
+            if (!auth.currentUser) await initAuth();
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
+            const snap = await getDoc(roomRef);
+            if (!snap.exists()) {
+                throw new Error("Room tidak ditemukan!");
+            }
+            const data = snap.data();
+            if (data.p2) {
+                throw new Error("Room sudah penuh!");
+            }
+            await updateDoc(roomRef, {
+                p2: guestData,
+                status: 'READY'
+            });
+            return roomRef;
+        };
+
+        window.listenToRoom = function(roomCode, callback) {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
+            if (window.pvpUnsubscribe) window.pvpUnsubscribe();
+            window.pvpUnsubscribe = onSnapshot(roomRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    callback(snapshot.data());
+                }
+            }, (err) => console.error("Snapshot error:", err));
+        };
+
+        window.updateRoomState = async function(roomCode, updatePayload) {
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
+                await updateDoc(roomRef, updatePayload);
+            } catch (err) {
+                console.error("Error updating room:", err);
+            }
+        };
+
+        window.saveLeaderboardScore = async function(playerRecord) {
+            try {
+                if (!auth.currentUser) await initAuth();
+                const docId = (auth.currentUser ? auth.currentUser.uid : 'user') + '_' + Date.now();
+                const leaderRef = doc(db, 'artifacts', appId, 'public', 'data', 'leaderboard', docId);
+                await setDoc(leaderRef, {
+                    name: playerRecord.name,
+                    score: playerRecord.score,
+                    accuracy: playerRecord.accuracy,
+                    bestCombo: playerRecord.bestCombo,
+                    timestamp: Date.now()
+                });
+            } catch (e) {
+                console.log("Saved local leaderboard record.");
+            }
+        };
+    </script>
+
+    <script>
+        /* WEB AUDIO SYNTHESIZER FOR MUSIC & SFX */
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.musicGain = null;
+                this.sfxGain = null;
+                this.isMuted = false;
+                this.musicVol = 0.7;
+                this.sfxVol = 0.8;
+                this.isClassroomMode = false;
+                this.bgmOscs = [];
+                this.bgmInterval = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioCtx();
+
+                this.musicGain = this.ctx.createGain();
+                this.sfxGain = this.ctx.createGain();
+
+                this.musicGain.connect(this.ctx.destination);
+                this.sfxGain.connect(this.ctx.destination);
+
+                this.applyVolumes();
+            }
+
+            applyVolumes() {
+                if (!this.ctx) return;
+                const scale = this.isClassroomMode ? 0.35 : 1.0;
+                const finalMusic = this.isMuted ? 0 : this.musicVol * scale;
+                const finalSfx = this.isMuted ? 0 : this.sfxVol * scale;
+
+                this.musicGain.gain.setValueAtTime(finalMusic, this.ctx.currentTime);
+                this.sfxGain.gain.setValueAtTime(finalSfx, this.ctx.currentTime);
+            }
+
+            playSFX(type) {
+                this.init();
+                if (this.isMuted) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.sfxGain);
+
+                if (type === 'click') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'correct') {
+                    // Upward Arpeggio
+                    const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    freqs.forEach((f, i) => {
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(f, now + i * 0.06);
+                        o.connect(g);
+                        g.connect(this.sfxGain);
+                        g.gain.setValueAtTime(0.3, now + i * 0.06);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
+                        o.start(now + i * 0.06);
+                        o.stop(now + i * 0.06 + 0.2);
+                    });
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.3);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'turbo') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.5);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'countdown') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'go') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(1200, now);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                }
+            }
+
+            startBGM(state = 'MENU') {
+                this.init();
+                this.stopBGM();
+
+                let notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
+                let tempo = 200; // ms per note
+
+                if (state === 'RACE') {
+                    notes = [293.66, 349.23, 440.00, 587.33, 440.00, 349.23]; // D minor synthwave
+                    tempo = 140;
+                } else if (state === 'TURBO') {
+                    notes = [329.63, 392.00, 493.88, 659.25, 783.99]; // High intense
+                    tempo = 100;
+                }
+
+                let step = 0;
+                this.bgmInterval = setInterval(() => {
+                    if (this.isMuted || !this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = state === 'RACE' ? 'sawtooth' : 'sine';
+                    const freq = notes[step % notes.length];
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    osc.connect(gain);
+                    gain.connect(this.musicGain);
+
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (tempo / 1000) * 0.9);
+
+                    osc.start(now);
+                    osc.stop(now + (tempo / 1000));
+
+                    step++;
+                }, tempo);
+            }
+
+            stopBGM() {
+                if (this.bgmInterval) clearInterval(this.bgmInterval);
+            }
+        }
+
+        const sounds = new SoundEngine();
+    </script>
+
+    <script>
+        /* THREE.JS 3D RACING ENGINE */
+        let scene, camera, renderer;
+        let playerCarMesh, opponentCarMesh;
+        let trackMesh, trackSpeedOffset = 0;
+        let particleSystem;
+        let curTrackTheme = 'CITY';
+
+        function init3DRacingWorld() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0d18);
+            scene.fog = new THREE.FogExp2(0x0a0d18, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3.5, 7);
+            camera.lookAt(0, 1, -10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Ambient & Directional Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0x00f0ff, 1.2);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
+            const pinkLight = new THREE.PointLight(0xff007f, 2, 30);
+            pinkLight.position.set(-5, 3, -10);
+            scene.add(pinkLight);
+
+            buildTrackEnvironment('CITY');
+            createCars();
+            createSpeedParticles();
+
+            window.addEventListener('resize', onWindowResize);
+            animate3D();
+        }
+
+        function buildDetailedRaceCar(primaryHex, accentHex, neonGlowHex) {
+            const carGroup = new THREE.Group();
+
+            // Metallic Body & Accent Materials
+            const bodyMat = new THREE.MeshStandardMaterial({ 
+                color: primaryHex, 
+                metalness: 0.85, 
+                roughness: 0.2 
+            });
+            const accentMat = new THREE.MeshStandardMaterial({ 
+                color: accentHex, 
+                metalness: 0.9, 
+                roughness: 0.1 
+            });
+            const glassMat = new THREE.MeshPhysicalMaterial({ 
+                color: 0x0f172a, 
+                metalness: 0.9, 
+                roughness: 0.1, 
+                transparent: true, 
+                opacity: 0.85 
+            });
+            const tireMat = new THREE.MeshStandardMaterial({ 
+                color: 0x18181b, 
+                roughness: 0.85, 
+                metalness: 0.1 
+            });
+            const rimMat = new THREE.MeshStandardMaterial({ 
+                color: primaryHex, 
+                metalness: 0.9, 
+                roughness: 0.2 
+            });
+            const neonMat = new THREE.MeshBasicMaterial({ color: neonGlowHex });
+            const headlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const taillightMat = new THREE.MeshBasicMaterial({ color: 0xff0055 });
+
+            // 1. Lower Chassis Base
+            const chassisGeo = new THREE.BoxGeometry(1.3, 0.18, 2.8);
+            const chassis = new THREE.Mesh(chassisGeo, bodyMat);
+            chassis.position.set(0, 0.25, 0);
+            chassis.castShadow = true;
+            carGroup.add(chassis);
+
+            // 2. Main Body Shell (Aero cockpit structure)
+            const bodyGeo = new THREE.BoxGeometry(1.2, 0.32, 2.3);
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.set(0, 0.45, 0);
+            body.castShadow = true;
+            carGroup.add(body);
+
+            // 3. Slanted Front Hood & Aerodynamic Nose
+            const hoodGeo = new THREE.BoxGeometry(1.1, 0.18, 0.95);
+            const hood = new THREE.Mesh(hoodGeo, bodyMat);
+            hood.position.set(0, 0.38, -1.05);
+            hood.rotation.x = 0.12;
+            carGroup.add(hood);
+
+            // Front Splitter / Bumper Lip
+            const splitterGeo = new THREE.BoxGeometry(1.35, 0.08, 0.35);
+            const splitter = new THREE.Mesh(splitterGeo, accentMat);
+            splitter.position.set(0, 0.2, -1.45);
+            carGroup.add(splitter);
+
+            // Neon Front Accent Bar
+            const splitterNeonGeo = new THREE.BoxGeometry(1.37, 0.04, 0.05);
+            const splitterNeon = new THREE.Mesh(splitterNeonGeo, neonMat);
+            splitterNeon.position.set(0, 0.2, -1.63);
+            carGroup.add(splitterNeon);
+
+            // 4. Cockpit Canopy & Windshield
+            const canopyGeo = new THREE.BoxGeometry(0.85, 0.36, 1.1);
+            const canopy = new THREE.Mesh(canopyGeo, glassMat);
+            canopy.position.set(0, 0.68, -0.1);
+            carGroup.add(canopy);
+
+            // Roof Accent Strip
+            const roofLineGeo = new THREE.BoxGeometry(0.87, 0.05, 1.12);
+            const roofLine = new THREE.Mesh(roofLineGeo, accentMat);
+            roofLine.position.set(0, 0.86, -0.1);
+            carGroup.add(roofLine);
+
+            // 5. Side Air Intakes
+            const leftIntakeGeo = new THREE.BoxGeometry(0.18, 0.25, 1.1);
+            const leftIntake = new THREE.Mesh(leftIntakeGeo, accentMat);
+            leftIntake.position.set(-0.67, 0.4, 0.1);
+            carGroup.add(leftIntake);
+
+            const rightIntake = leftIntake.clone();
+            rightIntake.position.x = 0.67;
+            carGroup.add(rightIntake);
+
+            // 6. Rear Spoiler & Wing Endplates
+            const spoilerWingGeo = new THREE.BoxGeometry(1.5, 0.06, 0.4);
+            const spoilerWing = new THREE.Mesh(spoilerWingGeo, accentMat);
+            spoilerWing.position.set(0, 0.92, 1.15);
+            spoilerWing.rotation.x = -0.08;
+            carGroup.add(spoilerWing);
+
+            const endplateGeo = new THREE.BoxGeometry(0.06, 0.22, 0.45);
+            const leftEndplate = new THREE.Mesh(endplateGeo, bodyMat);
+            leftEndplate.position.set(-0.76, 0.92, 1.15);
+            carGroup.add(leftEndplate);
+
+            const rightEndplate = leftEndplate.clone();
+            rightEndplate.position.x = 0.76;
+            carGroup.add(rightEndplate);
+
+            const supportGeo = new THREE.BoxGeometry(0.08, 0.32, 0.12);
+            const leftSupport = new THREE.Mesh(supportGeo, bodyMat);
+            leftSupport.position.set(-0.35, 0.72, 1.15);
+            carGroup.add(leftSupport);
+
+            const rightSupport = leftSupport.clone();
+            rightSupport.position.x = 0.35;
+            carGroup.add(rightSupport);
+
+            // 7. Headlights (Twin LED Strips + Spot Projection)
+            const headLightGeo = new THREE.BoxGeometry(0.35, 0.06, 0.08);
+            const leftHL = new THREE.Mesh(headLightGeo, headlightMat);
+            leftHL.position.set(-0.4, 0.42, -1.41);
+            carGroup.add(leftHL);
+
+            const rightHL = leftHL.clone();
+            rightHL.position.x = 0.4;
+            carGroup.add(rightHL);
+
+            const frontLight = new THREE.SpotLight(neonGlowHex, 2.5, 12, Math.PI / 4, 0.5);
+            frontLight.position.set(0, 0.45, -1.4);
+            frontLight.target.position.set(0, 0, -10);
+            carGroup.add(frontLight);
+            carGroup.add(frontLight.target);
+
+            // 8. Rear Taillight Lightbar
+            const tailGeo = new THREE.BoxGeometry(1.0, 0.06, 0.06);
+            const tailLight = new THREE.Mesh(tailGeo, taillightMat);
+            tailLight.position.set(0, 0.52, 1.32);
+            carGroup.add(tailLight);
+
+            // 9. Dual Exhaust Thrusters
+            const thrusterGroup = new THREE.Group();
+            for (let side of [-0.25, 0.25]) {
+                const pipeGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.28, 16);
+                const pipe = new THREE.Mesh(pipeGeo, accentMat);
+                pipe.rotation.x = Math.PI / 2;
+                pipe.position.set(side, 0.38, 1.28);
+
+                const flameGeo = new THREE.CylinderGeometry(0.08, 0.01, 0.35, 12);
+                const flame = new THREE.Mesh(flameGeo, neonMat);
+                flame.rotation.x = Math.PI / 2;
+                flame.position.set(side, 0.38, 1.48);
+
+                thrusterGroup.add(pipe);
+                thrusterGroup.add(flame);
+            }
+            carGroup.add(thrusterGroup);
+
+            // 10. Wheels & Glowing Rims (4 Spinning Wheels)
+            const wheels = [];
+            const wheelPositions = [
+                { x: -0.65, y: 0.25, z: -0.85 }, // Front-Left
+                { x: 0.65, y: 0.25, z: -0.85 },  // Front-Right
+                { x: -0.68, y: 0.28, z: 0.85 },  // Rear-Left
+                { x: 0.68, y: 0.28, z: 0.85 }    // Rear-Right
+            ];
+
+            wheelPositions.forEach((pos, idx) => {
+                const wGroup = new THREE.Group();
+                const radius = idx >= 2 ? 0.32 : 0.28;
+
+                // Tire
+                const tireGeo = new THREE.CylinderGeometry(radius, radius, 0.22, 24);
+                const tire = new THREE.Mesh(tireGeo, tireMat);
+                tire.rotation.z = Math.PI / 2;
+                tire.castShadow = true;
+                wGroup.add(tire);
+
+                // Rim
+                const rimGeo = new THREE.CylinderGeometry(radius * 0.65, radius * 0.65, 0.23, 12);
+                const rim = new THREE.Mesh(rimGeo, rimMat);
+                rim.rotation.z = Math.PI / 2;
+                wGroup.add(rim);
+
+                // Neon Spokes Accent
+                const spokeGeo = new THREE.BoxGeometry(0.05, 0.24, radius * 1.8);
+                const spoke = new THREE.Mesh(spokeGeo, neonMat);
+                spoke.rotation.y = Math.PI / 2;
+                wGroup.add(spoke);
+
+                wGroup.position.set(pos.x, pos.y, pos.z);
+                carGroup.add(wGroup);
+                wheels.push(wGroup);
+            });
+
+            // 11. Neon Underglow
+            const underglow = new THREE.PointLight(neonGlowHex, 2.5, 3.5);
+            underglow.position.set(0, 0.05, 0);
+            carGroup.add(underglow);
+
+            carGroup.userData = { wheels: wheels, thrusters: thrusterGroup };
+            return carGroup;
+        }
+
+        function createCars() {
+            // Player Car (Cyan Futuristic Supercar)
+            playerCarMesh = buildDetailedRaceCar(0x00f0ff, 0x0f172a, 0x00f0ff);
+            playerCarMesh.position.set(-1.3, 0, 0);
+            scene.add(playerCarMesh);
+
+            // Opponent Car (Pink Futuristic Supercar)
+            opponentCarMesh = buildDetailedRaceCar(0xff007f, 0x1e1b4b, 0xff007f);
+            opponentCarMesh.position.set(1.3, 0, 0);
+            scene.add(opponentCarMesh);
+        }
+
+        function buildTrackEnvironment(themeKey) {
+            curTrackTheme = themeKey;
+            if (trackMesh) scene.remove(trackMesh);
+
+            const trackGroup = new THREE.Group();
+
+            // Main Highway Road
+            const roadGeo = new THREE.PlaneGeometry(12, 400, 1, 100);
+            const roadMat = new THREE.MeshStandardMaterial({ color: 0x101424, roughness: 0.4 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            road.position.z = -180;
+            trackGroup.add(road);
+
+            // Glowing Neon Grid Lines on Sides
+            const lineGeo = new THREE.BoxGeometry(0.2, 0.1, 400);
+            const lineMat = new THREE.MeshBasicMaterial({ color: themeKey === 'SPREADSHEET' ? 0x00ff88 : 0x00f0ff });
+            const leftLine = new THREE.Mesh(lineGeo, lineMat);
+            leftLine.position.set(-6, 0.05, -180);
+            const rightLine = new THREE.Mesh(lineGeo, lineMat);
+            rightLine.position.set(6, 0.05, -180);
+            trackGroup.add(leftLine);
+            trackGroup.add(rightLine);
+
+            // Decorative Floating Hologram Billboards (SMP NAWA KARTIKA)
+            for (let i = 0; i < 8; i++) {
+                const boardGeo = new THREE.BoxGeometry(6, 2.5, 0.2);
+                const boardMat = new THREE.MeshBasicMaterial({
+                    color: i % 2 === 0 ? 0x00f0ff : 0xff007f,
+                    wireframe: true
+                });
+                const board = new THREE.Mesh(boardGeo, boardMat);
+                board.position.set(i % 2 === 0 ? -9 : 9, 4, -40 * i - 20);
+                trackGroup.add(board);
+            }
+
+            scene.add(trackGroup);
+            trackMesh = trackGroup;
+        }
+
+        function createSpeedParticles() {
+            const count = 300;
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+
+            for (let i = 0; i < count * 3; i += 3) {
+                pos[i] = (Math.random() - 0.5) * 30;
+                pos[i + 1] = Math.random() * 10;
+                pos[i + 2] = -Math.random() * 100;
+            }
+
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({ color: 0x00f0ff, size: 0.15, transparent: true, opacity: 0.8 });
+            particleSystem = new THREE.Points(geo, mat);
+            scene.add(particleSystem);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            // Move track grid for illusion of forward speed
+            const currentSpeed = window.gameState?.currentSpeed || 60;
+            trackSpeedOffset += (currentSpeed / 600);
+
+            if (trackMesh) {
+                trackMesh.position.z = (trackSpeedOffset % 40);
+            }
+
+            // Animate Particles
+            if (particleSystem) {
+                const positions = particleSystem.geometry.attributes.position.array;
+                for (let i = 2; i < positions.length; i += 3) {
+                    positions[i] += currentSpeed / 200;
+                    if (positions[i] > 5) positions[i] = -100;
+                }
+                particleSystem.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Animate Car Floating, Wheel Rotation & Thruster Flames
+            const wheelSpin = currentSpeed * 0.005;
+
+            [playerCarMesh, opponentCarMesh].forEach((car) => {
+                if (car && car.userData) {
+                    if (car.userData.wheels) {
+                        car.userData.wheels.forEach(w => w.rotation.x += wheelSpin);
+                    }
+                    if (car.userData.thrusters) {
+                        car.userData.thrusters.children.forEach((c, idx) => {
+                            if (idx % 2 === 1) { // Flame mesh
+                                c.scale.set(1, 0.8 + Math.random() * 0.5, 1);
+                            }
+                        });
+                    }
+                }
+            });
+
+            if (playerCarMesh) {
+                playerCarMesh.position.y = Math.sin(Date.now() * 0.008) * 0.04 + 0.05;
+            }
+            if (opponentCarMesh) {
+                opponentCarMesh.position.y = Math.cos(Date.now() * 0.008) * 0.04 + 0.05;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+
+    <script>
+        /* TIK KELAS 8 QUESTION BANK */
+        const TIK_QUESTION_BANK = [
+            // Level 1 - Dasar Word & Spreadsheet
+            {
+                q: "Ikon atau kombinasi tombol yang digunakan untuk menyalin (copy) teks tanpa menghapus sumbernya adalah...",
+                options: ["Ctrl + C", "Ctrl + X", "Ctrl + V", "Ctrl + Z"],
+                answer: 0,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 1 - MUDAH",
+                explanation: "Ctrl + C digunakan untuk Copy (menyalin), sedangkan Ctrl + X untuk Cut, Ctrl + V untuk Paste, dan Ctrl + Z untuk Undo."
+            },
+            {
+                q: "Pertemuan antara kolom (Column) dan baris (Row) pada Microsoft Excel dinamakan...",
+                options: ["Range", "Cell", "Worksheet", "Grid"],
+                answer: 1,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 1 - MUDAH",
+                explanation: "Cell adalah kotak pertemuan antara kolom (huruf A, B, C) dan baris (angka 1, 2, 3)."
+            },
+            {
+                q: "Untuk menempelkan teks atau objek yang telah disalin sebelumnya, kita menggunakan perintah...",
+                options: ["Cut", "Copy", "Paste", "Save"],
+                answer: 2,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 1 - MUDAH",
+                explanation: "Paste (Ctrl + V) berfungsi untuk menampilkan objek/teks hasil salinan atau pemotongan."
+            },
+            {
+                q: "Simbol wajib yang harus diketik pertama kali saat akan memasukkan rumus/formula di spreadsheet adalah...",
+                options: ["+", "=", "@", "#"],
+                answer: 1,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 1 - MUDAH",
+                explanation: "Semua formula atau rumus Excel/Spreadsheet harus diawali dengan tanda sama dengan (=)."
+            },
+            {
+                q: "Fitur untuk mengatur orientasi kertas menjadi tegak (Portrait) atau miring (Landscape) terdapat di menu...",
+                options: ["Insert", "Page Layout", "Home", "View"],
+                answer: 1,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 1 - MUDAH",
+                explanation: "Menu Page Layout berisi pengaturan batas marjin, ukuran kertas, dan orientasi (Orientation)."
+            },
+
+            // Level 2 - Fitur Aplikasi Perkantoran
+            {
+                q: "Fungsi spreadsheet yang digunakan untuk menghitung JUMLAH TOTAL dari sekelompok data angka adalah...",
+                options: ["=AVERAGE()", "=COUNT()", "=SUM()", "=MAX()"],
+                answer: 2,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: "=SUM() berfungsi menjumlahkan total angka. =AVERAGE() untuk rata-rata, =COUNT() untuk menghitung banyak sel."
+            },
+            {
+                q: "Untuk membuat tabel di Microsoft Word, kita dapat mengakses tab menu...",
+                options: ["Home", "Insert", "Design", "References"],
+                answer: 1,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: "Menu Insert menyediakan pilihan Insert Table, Gambar, Shapes, dan Chart."
+            },
+            {
+                q: "Rumus spreadsheet untuk mencari nilai RATA-RATA dari rentang sel A1 sampai A10 adalah...",
+                options: ["=SUM(A1:A10)", "=AVERAGE(A1:A10)", "=MIN(A1:A10)", "=MEDIAN(A1:A10)"],
+                answer: 1,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: "Fungsi =AVERAGE(A1:A10) menghitung rata-rata nilai numerik pada rentang sel tersebut."
+            },
+            {
+                q: "Fitur 'Sort A to Z' pada aplikasi spreadsheet digunakan untuk...",
+                options: ["Menyaring data tertentu", "Mengurutkan data dari kecil ke besar / abjad A-Z", "Menghapus data ganda", "Membuat grafik"],
+                answer: 1,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: "Sort A to Z mengurutkan data teks secara alfabetis atau angka secara ascending."
+            },
+            {
+                q: "Ekstensi file standar untuk dokumen Microsoft Word versi modern adalah...",
+                options: [".docx", ".xlsx", ".pptx", ".pdf"],
+                answer: 0,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: ".docx adalah ekstensi Word, .xlsx untuk Excel, dan .pptx untuk PowerPoint."
+            },
+
+            // Level 3 - Pengolahan Data & Grafik
+            {
+                q: "Kumpulan dari beberapa sel yang dipilih atau diblok pada spreadsheet disebut...",
+                options: ["Column", "Row", "Range", "Workbook"],
+                answer: 2,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 3 - SULIT",
+                explanation: "Range adalah sekumpulan sel yang disorot bersama (contoh: A1:C5)."
+            },
+            {
+                q: "Visualisasi data angka spreadsheet dalam bentuk batang atau lingkaran disebut...",
+                options: ["Table", "Chart / Grafik", "Diagram Venn", "Clipart"],
+                answer: 1,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 3 - SULIT",
+                explanation: "Chart/Grafik membantu memvisualisasikan tren data agar lebih mudah dipahami."
+            },
+            {
+                q: "Fungsi logika pada spreadsheet yang memberikan nilai berdasarkan kondisi TRUE atau FALSE adalah...",
+                options: ["=IF()", "=VLOOKUP()", "=SUMIF()", "=CONCATENATE()"],
+                answer: 0,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 3 - SULIT",
+                explanation: "Fungsi =IF(kondisi, nilai_jika_benar, nilai_jika_salah) memeriksa tes logika."
+            },
+            {
+                q: "Untuk menyisipkan gambar dari komputer ke dalam dokumen Microsoft Word, langkah yang benar adalah...",
+                options: ["Home -> Insert Image", "Insert -> Pictures -> This Device", "Page Layout -> Background", "View -> Pictures"],
+                answer: 1,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 3 - SULIT",
+                explanation: "Menu Insert -> Pictures memungkinkan penyisipan berkas gambar ke dokumen."
+            },
+
+            // Level 4 - Integrasi Word & Excel
+            {
+                q: "Manakah metode paling efisien untuk memasukkan tabel data Excel yang selalu ter-update otomatis ke dalam Word?",
+                options: ["Screenshot gambar", "Copy lalu Paste Link (Object Linking)", "Ketik ulang tabel", "Export ke PDF"],
+                answer: 1,
+                category: "INTEGRASI APLIKASI",
+                difficulty: "LEVEL 4 - EXPERT",
+                explanation: "Paste Link memanfaatkan OLE (Object Linking and Embedding) sehingga perubahan di Excel otomatis memperbarui dokumen Word."
+            },
+            {
+                q: "Fitur di Word yang digunakan untuk membuat surat masal secara otomatis berdasarkan basis data Excel adalah...",
+                options: ["Mail Merge", "Track Changes", "Cross-reference", "Macro"],
+                answer: 0,
+                category: "INTEGRASI APLIKASI",
+                difficulty: "LEVEL 4 - EXPERT",
+                explanation: "Mail Merge menghubungkan dokumen Word sebagai template dengan data penerima di spreadsheet Excel."
+            },
+            {
+                q: " Shortcut keyboard untuk memotong (Cut) objek agar bisa dipindahkan adalah...",
+                options: ["Ctrl + C", "Ctrl + X", "Ctrl + P", "Ctrl + A"],
+                answer: 1,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 1 - MUDAH",
+                explanation: "Ctrl + X berfungsi memotong/memindahkan objek pilihan."
+            },
+            {
+                q: "Fungsi =MAX(B2:B20) pada tabel nilai siswa digunakan untuk mencari...",
+                options: ["Nilai terkecil", "Nilai tertinggi", "Rata-rata nilai", "Jumlah siswa"],
+                answer: 1,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: "=MAX() mencari angka terbesar/tertinggi dalam suatu range."
+            },
+            {
+                q: "Fitur 'Filter' pada spreadsheet bermanfaat untuk...",
+                options: ["Menampilkan data yang memenuhi kriteria tertentu saja", "Mengubah warna tabel", "Memperbesar ukuran sel", "Menghapus sel kosong"],
+                answer: 0,
+                category: "SPREADSHEET",
+                difficulty: "LEVEL 3 - SULIT",
+                explanation: "Filter mempermudah analisis data dengan hanya menampilkan baris yang sesuai kriteria."
+            },
+            {
+                q: "Untuk merapikan paragraf agar rata kiri dan rata kanan sekaligus pada Word, kita memilih alignment...",
+                options: ["Align Left", "Center", "Align Right", "Justify"],
+                answer: 3,
+                category: "WORD PROCESSING",
+                difficulty: "LEVEL 2 - SEDANG",
+                explanation: "Justify (Ctrl + J) meratakan teks pada sisi kiri dan kanan dokumen."
+            }
+        ];
+
+        /* CHARACTER DATA */
+        const CHARACTERS = [
+            { id: 'rian', name: 'Rian "Speed Racer"', title: 'The Speed Demon', car: 'Apex Lightning', icon: 'fa-bolt', color: 'text-cyan-400' },
+            { id: 'nia', name: 'Nia "Tech Genius"', title: 'The Data Master', car: 'Cyber Sheet', icon: 'fa-brain', color: 'text-pink-400' },
+            { id: 'bima', name: 'Bima "Strategist"', title: 'The Word Smith', car: 'Word Master Sedan', icon: 'fa-chess', color: 'text-yellow-400' },
+            { id: 'maya', name: 'Maya "Formula Ace"', title: 'Matrix Roadster', car: 'Formula Turbo', icon: 'fa-wand-magic-sparkles', color: 'text-emerald-400' },
+            { id: 'arka', name: 'Capten Arka', title: 'Nawa Kartika Champion', car: 'Patriot Kartika', icon: 'fa-crown', color: 'text-purple-400' }
+        ];
+
+        /* TRACK DATA */
+        const TRACKS = [
+            { id: 'CITY', name: 'TRACK 1 - CITY STARTER CIRCUIT', desc: 'Gedung SMP Nawa Kartika & Jalanan Kota Modern', key: 'CITY', icon: 'fa-building' },
+            { id: 'TECH', name: 'TRACK 2 - TECH CITY RACE', desc: 'Word Processing Zone dengan Ikon Digital & Neon', key: 'TECH', icon: 'fa-city' },
+            { id: 'SPREADSHEET', name: 'TRACK 3 - SPREADSHEET HIGHWAY', desc: 'Jalanan Bertema Sel, Angka & Grafik Excel', key: 'SPREADSHEET', icon: 'fa-table-cells' },
+            { id: 'MOUNTAIN', name: 'TRACK 4 - FORMULA MOUNTAIN', desc: 'Terowongan Petir & Pegunungan Futuristik', key: 'MOUNTAIN', icon: 'fa-mountain' },
+            { id: 'STADIUM', name: 'TRACK 5 - TIK GRAND PRIX STADIUM', desc: 'Stadion Utama Final SMP Nawa Kartika', key: 'STADIUM', icon: 'fa-trophy' }
+        ];
+
+        /* GAME STATE ENGINE */
+        window.gameState = {
+            mode: 'SINGLE', // 'SINGLE' or 'PVP'
+            playerName: 'Siswa Kartika',
+            selectedChar: CHARACTERS[0],
+            selectedTrack: TRACKS[0],
+            score: 0,
+            combo: 0,
+            bestCombo: 0,
+            correctCount: 0,
+            wrongCount: 0,
+            totalTimeSpent: 0,
+            speedBonusTotal: 0,
+            comboBonusTotal: 0,
+            currentQIndex: 0,
+            matchQuestions: [],
+            currentSpeed: 60,
+            timerVal: 15,
+            timerInterval: null,
+            roomCode: null,
+            opponentScore: 0,
+            opponentName: 'AI Bot'
+        };
+
+        // Initialize UI Elements & Event Handlers on DOM Ready
+        window.addEventListener('load', () => {
+            init3DRacingWorld();
+            renderCharacterSetup();
+            renderTrackSetup();
+            renderLeaderboardMock();
+            sounds.startBGM('MENU');
+        });
+
+        function switchScreen(screenId) {
+            sounds.playSFX('click');
+            const screens = ['screen-main-menu', 'screen-setup', 'screen-pvp-lobby', 'screen-hud', 'screen-result'];
+            screens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(screenId);
+            if (target) target.classList.remove('hidden');
+
+            if (screenId === 'screen-main-menu') {
+                sounds.startBGM('MENU');
+            }
+        }
+
+        function openModal(modalId) {
+            sounds.playSFX('click');
+            document.getElementById(modalId)?.classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            sounds.playSFX('click');
+            document.getElementById(modalId)?.classList.add('hidden');
+        }
+
+        /* SETUP & SELECTION RENDERING */
+        function renderCharacterSetup() {
+            const container = document.getElementById('character-list');
+            container.innerHTML = CHARACTERS.map((c, i) => `
+                <div onclick="selectCharacter('${c.id}')" id="char-card-${c.id}" class="cursor-pointer p-3 rounded-xl glass-panel border ${i === 0 ? 'border-cyan-400 bg-cyan-500/10' : 'border-slate-800'} hover:border-cyan-400 transition flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center ${c.color} text-lg">
+                        <i class="fa-solid ${c.icon}"></i>
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="font-bold text-slate-200 text-xs truncate">${c.name}</div>
+                        <div class="text-[10px] text-slate-400 truncate">${c.car}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTrackSetup() {
+            const container = document.getElementById('track-list');
+            container.innerHTML = TRACKS.map((t, i) => `
+                <div onclick="selectTrack('${t.id}')" id="track-card-${t.id}" class="cursor-pointer p-2.5 rounded-xl glass-panel border ${i === 0 ? 'border-yellow-400 bg-yellow-500/10' : 'border-slate-800'} hover:border-yellow-400 transition flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid ${t.icon} text-yellow-400 text-sm"></i>
+                        <div>
+                            <div class="font-orbitron font-bold text-slate-200 text-xs">${t.name}</div>
+                            <div class="text-[10px] text-slate-400">${t.desc}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectCharacter(id) {
+            sounds.playSFX('click');
+            const found = CHARACTERS.find(c => c.id === id);
+            if (found) window.gameState.selectedChar = found;
+            CHARACTERS.forEach(c => {
+                const card = document.getElementById(`char-card-${c.id}`);
+                if (card) {
+                    if (c.id === id) {
+                        card.className = "cursor-pointer p-3 rounded-xl glass-panel border border-cyan-400 bg-cyan-500/10 transition flex items-center space-x-3";
+                    } else {
+                        card.className = "cursor-pointer p-3 rounded-xl glass-panel border border-slate-800 transition flex items-center space-x-3";
+                    }
+                }
+            });
+        }
+
+        function selectTrack(id) {
+            sounds.playSFX('click');
+            const found = TRACKS.find(t => t.id === id);
+            if (found) {
+                window.gameState.selectedTrack = found;
+                buildTrackEnvironment(found.key);
+            }
+            TRACKS.forEach(t => {
+                const card = document.getElementById(`track-card-${t.id}`);
+                if (card) {
+                    if (t.id === id) {
+                        card.className = "cursor-pointer p-2.5 rounded-xl glass-panel border border-yellow-400 bg-yellow-500/10 transition flex items-center justify-between";
+                    } else {
+                        card.className = "cursor-pointer p-2.5 rounded-xl glass-panel border border-slate-800 transition flex items-center justify-between";
+                    }
+                }
+            });
+        }
+
+        function prepareSinglePlayer() {
+            window.gameState.mode = 'SINGLE';
+            document.getElementById('setup-mode-badge').innerText = 'MODE: SINGLE PLAYER (VS AI)';
+            switchScreen('screen-setup');
+        }
+
+        function prepareMultiplayer() {
+            window.gameState.mode = 'PVP';
+            document.getElementById('setup-mode-badge').innerText = 'MODE: MULTIPLAYER PvP';
+            switchScreen('screen-setup');
+        }
+
+        function proceedFromSetup() {
+            const nameInput = document.getElementById('input-player-name').value.trim();
+            window.gameState.playerName = nameInput || 'Siswa Nawa Kartika';
+
+            if (window.gameState.mode === 'PVP') {
+                switchScreen('screen-pvp-lobby');
+            } else {
+                startRaceCountdown();
+            }
+        }
+
+        /* MULTIPLAYER PvP LOGIC */
+        async function createPvPRoom() {
+            sounds.playSFX('click');
+            const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            window.gameState.roomCode = roomCode;
+
+            document.getElementById('display-room-code').innerText = roomCode;
+            document.getElementById('p1-name').innerText = window.gameState.playerName;
+            document.getElementById('pvp-room-details').classList.remove('hidden');
+
+            try {
+                await window.createFirestoreRoom(roomCode, {
+                    name: window.gameState.playerName,
+                    score: 0,
+                    qIndex: 0
+                });
+
+                window.listenToRoom(roomCode, (data) => {
+                    if (data.p2) {
+                        document.getElementById('p2-name').innerText = data.p2.name;
+                        document.getElementById('p2-status').innerText = 'Ready!';
+                        document.getElementById('p2-status').className = 'text-xs text-emerald-400 font-semibold';
+                        document.getElementById('room-status-badge').innerText = 'LOBBY PENUH - SIAP BALAPAN';
+                        document.getElementById('btn-start-pvp').disabled = false;
+                        document.getElementById('btn-start-pvp').className = 'px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-orbitron font-bold hover:scale-105 transition text-sm cursor-pointer';
+                        window.gameState.opponentName = data.p2.name;
+                    }
+                    if (data.status === 'RACING') {
+                        startRaceCountdown();
+                    }
+                });
+            } catch (err) {
+                console.log("PvP Local fallback created.");
+            }
+        }
+
+        async function joinPvPRoom() {
+            sounds.playSFX('click');
+            const code = document.getElementById('input-room-code').value.trim();
+            if (code.length !== 4) {
+                showToast("Masukkan 4 digit Kode Room!");
+                return;
+            }
+            window.gameState.roomCode = code;
+
+            try {
+                await window.joinFirestoreRoom(code, {
+                    name: window.gameState.playerName,
+                    score: 0,
+                    qIndex: 0
+                });
+
+                document.getElementById('display-room-code').innerText = code;
+                document.getElementById('p2-name').innerText = window.gameState.playerName;
+                document.getElementById('p2-status').innerText = 'Ready!';
+                document.getElementById('pvp-room-details').classList.remove('hidden');
+
+                window.listenToRoom(code, (data) => {
+                    if (data.p1) {
+                        document.getElementById('p1-name').innerText = data.p1.name;
+                        window.gameState.opponentName = data.p1.name;
+                    }
+                    if (data.status === 'RACING') {
+                        startRaceCountdown();
+                    }
+                });
+            } catch (err) {
+                showToast(err.message || "Gagal gabung room.");
+            }
+        }
+
+        function startPvPGame() {
+            if (window.gameState.roomCode) {
+                window.updateRoomState(window.gameState.roomCode, { status: 'RACING' });
+            }
+            startRaceCountdown();
+        }
+
+        function leavePvPRoom() {
+            sounds.playSFX('click');
+            document.getElementById('pvp-room-details').classList.add('hidden');
+            if (window.pvpUnsubscribe) window.pvpUnsubscribe();
+        }
+
+        function copyRoomCode() {
+            const code = document.getElementById('display-room-code').innerText;
+            navigator.clipboard?.writeText(code);
+            showToast("Kode Room Disalin: " + code);
+        }
+
+        /* COUNTDOWN & RACE INITIALIZATION */
+        function startRaceCountdown() {
+            switchScreen('screen-hud');
+            const overlay = document.getElementById('countdown-overlay');
+            const numEl = document.getElementById('countdown-number');
+            overlay.classList.remove('hidden');
+
+            let count = 3;
+            numEl.innerText = count;
+            sounds.playSFX('countdown');
+
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    numEl.innerText = count;
+                    sounds.playSFX('countdown');
+                } else if (count === 0) {
+                    numEl.innerText = 'GO!';
+                    sounds.playSFX('go');
+                } else {
+                    clearInterval(timer);
+                    overlay.classList.add('hidden');
+                    initMatchQuestions();
+                    sounds.startBGM('RACE');
+                }
+            }, 900);
+        }
+
+        function initMatchQuestions() {
+            // Pick 20 questions randomly or sequentially from question bank
+            const shuffle = [...TIK_QUESTION_BANK].sort(() => 0.5 - Math.random());
+            window.gameState.matchQuestions = shuffle.slice(0, 20);
+
+            // Reset match counters
+            window.gameState.score = 0;
+            window.gameState.combo = 0;
+            window.gameState.bestCombo = 0;
+            window.gameState.correctCount = 0;
+            window.gameState.wrongCount = 0;
+            window.gameState.totalTimeSpent = 0;
+            window.gameState.speedBonusTotal = 0;
+            window.gameState.comboBonusTotal = 0;
+            window.gameState.currentQIndex = 0;
+            window.gameState.opponentScore = 0;
+
+            document.getElementById('hud-player-name').innerText = window.gameState.playerName;
+            document.getElementById('hud-opponent-name').innerText = window.gameState.opponentName;
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const state = window.gameState;
+            if (state.currentQIndex >= state.matchQuestions.length) {
+                finishMatch();
+                return;
+            }
+
+            const qData = state.matchQuestions[state.currentQIndex];
+
+            // Update UI
+            document.getElementById('hud-question-count').innerText = `${state.currentQIndex + 1}/20`;
+            document.getElementById('hud-player-score').innerText = state.score;
+            document.getElementById('hud-combo-val').innerText = `x${state.combo}`;
+            document.getElementById('hud-progress-bar').style.width = `${((state.currentQIndex) / 20) * 100}%`;
+
+            document.getElementById('quiz-category-badge').innerText = qData.category;
+            document.getElementById('quiz-difficulty-badge').innerText = qData.difficulty;
+            document.getElementById('quiz-question-text').innerText = `${state.currentQIndex + 1}. ${qData.q}`;
+            document.getElementById('quiz-explanation-box').classList.add('hidden');
+
+            // Render Options Buttons
+            const grid = document.getElementById('quiz-options-grid');
+            grid.innerHTML = qData.options.map((opt, idx) => `
+                <button onclick="handleAnswer(${idx})" class="quiz-opt-btn group p-3 rounded-xl glass-panel border border-slate-700 hover:border-cyan-400 hover:bg-cyan-500/20 transition flex items-center space-x-3 text-left w-full">
+                    <span class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center font-orbitron font-bold text-xs text-cyan-300 group-hover:border-cyan-400">
+                        ${String.fromCharCode(65 + idx)}
+                    </span>
+                    <span class="font-semibold text-xs sm:text-sm text-slate-200 group-hover:text-white">
+                        ${opt}
+                    </span>
+                </button>
+            `).join('');
+
+            // Start Timer (15 Seconds per question)
+            startQuestionTimer();
+        }
+
+        function startQuestionTimer() {
+            if (window.gameState.timerInterval) clearInterval(window.gameState.timerInterval);
+            let time = 15;
+            window.gameState.timerVal = time;
+
+            const timerText = document.getElementById('quiz-timer-text');
+            const timerBar = document.getElementById('quiz-timer-bar');
+
+            timerText.innerText = `${time}s`;
+            timerBar.style.width = '100%';
+
+            window.gameState.timerInterval = setInterval(() => {
+                time--;
+                window.gameState.timerVal = time;
+                timerText.innerText = `${time}s`;
+                timerBar.style.width = `${(time / 15) * 100}%`;
+
+                if (time <= 0) {
+                    clearInterval(window.gameState.timerInterval);
+                    handleAnswer(-1); // Timeout
+                }
+            }, 1000);
+        }
+
+        /* SCORING & ANSWER EVALUATION */
+        function handleAnswer(selectedIndex) {
+            if (window.gameState.timerInterval) clearInterval(window.gameState.timerInterval);
+
+            const qData = window.gameState.matchQuestions[window.gameState.currentQIndex];
+            const timeTaken = 15 - window.gameState.timerVal;
+            window.gameState.totalTimeSpent += timeTaken;
+
+            const isCorrect = (selectedIndex === qData.answer);
+
+            // Disable option buttons during feedback transition
+            const btns = document.querySelectorAll('.quiz-opt-btn');
+            btns.forEach(b => b.disabled = true);
+
+            if (isCorrect) {
+                sounds.playSFX('correct');
+                window.gameState.correctCount++;
+                window.gameState.combo++;
+                if (window.gameState.combo > window.gameState.bestCombo) {
+                    window.gameState.bestCombo = window.gameState.combo;
+                }
+
+                // 1. Base Score
+                let earned = 100;
+
+                // 2. Speed Bonus Calculation
+                let speedBonus = 0;
+                if (timeTaken <= 3) speedBonus = 50;
+                else if (timeTaken <= 6) speedBonus = 30;
+                else if (timeTaken <= 10) speedBonus = 10;
+
+                window.gameState.speedBonusTotal += speedBonus;
+
+                // 3. Combo Bonus Calculation
+                let comboBonus = 0;
+                if (window.gameState.combo === 3) comboBonus = 30;
+                else if (window.gameState.combo === 5) comboBonus = 50;
+                else if (window.gameState.combo >= 10) comboBonus = 100;
+
+                window.gameState.comboBonusTotal += comboBonus;
+
+                const totalQuestionScore = earned + speedBonus + comboBonus;
+                window.gameState.score += totalQuestionScore;
+
+                // Visual Boost & Speed lines
+                triggerSpeedBoost(true);
+                showHUDFeedback(`CORRECT! +${totalQuestionScore}`, 'text-emerald-300 border-emerald-400');
+
+            } else {
+                sounds.playSFX('wrong');
+                window.gameState.wrongCount++;
+                window.gameState.combo = 0; // Reset combo momentum
+
+                triggerSpeedBoost(false);
+                showHUDFeedback(selectedIndex === -1 ? 'TIME OUT! COMBO RESET' : 'WRONG ANSWER!', 'text-red-400 border-red-500');
+            }
+
+            // Highlight Correct / Wrong Buttons
+            if (btns[qData.answer]) {
+                btns[qData.answer].classList.add('bg-emerald-500/30', 'border-emerald-400');
+            }
+            if (selectedIndex >= 0 && selectedIndex !== qData.answer && btns[selectedIndex]) {
+                btns[selectedIndex].classList.add('bg-red-500/30', 'border-red-500');
+            }
+
+            // Show Brief Explanation
+            const expBox = document.getElementById('quiz-explanation-box');
+            document.getElementById('quiz-explanation-text').innerText = qData.explanation;
+            expBox.classList.remove('hidden');
+
+            // Simulating AI/Opponent Scoring
+            simulateOpponentProgress();
+
+            // Next Question Delay
+            setTimeout(() => {
+                window.gameState.currentQIndex++;
+                renderQuestion();
+            }, 2200);
+        }
+
+        function triggerSpeedBoost(isBoost) {
+            const overlay = document.getElementById('speed-lines-effect');
+            if (isBoost) {
+                window.gameState.currentSpeed = 180;
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-40');
+                sounds.playSFX('turbo');
+            } else {
+                window.gameState.currentSpeed = 40;
+                overlay.classList.add('opacity-0');
+            }
+
+            setTimeout(() => {
+                window.gameState.currentSpeed = 80;
+                overlay.classList.add('opacity-0');
+            }, 1200);
+        }
+
+        function showHUDFeedback(text, borderClass) {
+            const banner = document.getElementById('hud-feedback-banner');
+            banner.innerText = text;
+            banner.className = `self-center px-6 py-2 rounded-full glass-panel-neon font-orbitron font-black text-lg sm:text-xl text-center tracking-wider transition duration-200 transform scale-100 opacity-100 ${borderClass}`;
+
+            setTimeout(() => {
+                banner.className = `self-center px-6 py-2 rounded-full glass-panel-neon font-orbitron font-black text-lg sm:text-xl text-center tracking-wider transition duration-200 transform scale-90 opacity-0 ${borderClass}`;
+            }, 1600);
+        }
+
+        function simulateOpponentProgress() {
+            // AI / Remote player sync score simulation
+            const aiChance = Math.random() > 0.3; // 70% accuracy for AI
+            if (aiChance) {
+                window.gameState.opponentScore += 110;
+            }
+            document.getElementById('hud-opponent-score').innerText = window.gameState.opponentScore;
+        }
+
+        /* MATCH FINISH & PODIUM LOGIC */
+        function finishMatch() {
+            sounds.startBGM('MENU');
+            switchScreen('screen-result');
+
+            const state = window.gameState;
+            const totalQ = 20;
+            const accuracy = Math.round((state.correctCount / totalQ) * 100);
+            const avgTime = (state.totalTimeSpent / totalQ).toFixed(1);
+
+            document.getElementById('res-total-score').innerText = state.score;
+            document.getElementById('res-correct-wrong').innerText = `${state.correctCount} / ${state.wrongCount}`;
+            document.getElementById('res-accuracy').innerText = `${accuracy}%`;
+            document.getElementById('res-best-combo').innerText = `${state.bestCombo}x`;
+
+            document.getElementById('res-speed-bonus').innerText = `+${state.speedBonusTotal} Poin`;
+            document.getElementById('res-combo-bonus').innerText = `+${state.comboBonusTotal} Poin`;
+            document.getElementById('res-avg-time').innerText = `${avgTime}s`;
+
+            // Victory or Defeat Banner
+            const isWinner = state.score >= state.opponentScore;
+            const resTitle = document.getElementById('result-title');
+            const resSub = document.getElementById('result-subtitle');
+
+            if (isWinner) {
+                resTitle.innerText = "🏆 VICTORY!";
+                resTitle.className = "font-orbitron font-black text-4xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-emerald-300 to-cyan-400 text-glow-yellow";
+                resSub.innerText = `Luar biasa! Kamu mengalahkan ${state.opponentName} dan meraih predikat TIK MASTER SMP Nawa Kartika!`;
+                sounds.playSFX('correct');
+            } else {
+                resTitle.innerText = "TRY AGAIN!";
+                resTitle.className = "font-orbitron font-black text-4xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-red-400";
+                resSub.innerText = `Tetap semangat! Pertajam pengetahuan pengolah kata & angka kamu untuk membalas kekalahan.`;
+            }
+
+            // Save score record
+            window.saveLeaderboardScore({
+                name: state.playerName,
+                score: state.score,
+                accuracy: accuracy,
+                bestCombo: state.bestCombo
+            });
+        }
+
+        function restartGame() {
+            sounds.playSFX('click');
+            startRaceCountdown();
+        }
+
+        /* LEADERBOARD DISPLAY */
+        function showLeaderboard() {
+            renderLeaderboardMock();
+            openModal('modal-leaderboard');
+        }
+
+        function renderLeaderboardMock() {
+            const mockData = [
+                { rank: 1, name: 'Capten Arka', score: 3200, acc: '100%', combo: '15x' },
+                { rank: 2, name: 'Nia Tech Genius', score: 2950, acc: '95%', combo: '12x' },
+                { rank: 3, name: 'Rian Speed', score: 2700, acc: '90%', combo: '9x' },
+                { rank: 4, name: 'Bima Strategist', score: 2400, acc: '85%', combo: '7x' },
+                { rank: 5, name: 'Maya Formula', score: 2100, acc: '80%', combo: '5x' }
+            ];
+
+            const tbody = document.getElementById('leaderboard-tbody');
+            tbody.innerHTML = mockData.map(d => `
+                <tr class="hover:bg-slate-800/40 border-b border-slate-800/40">
+                    <td class="py-2.5 px-2 font-orbitron font-bold ${d.rank === 1 ? 'text-yellow-400' : d.rank === 2 ? 'text-slate-300' : 'text-amber-600'}">#${d.rank}</td>
+                    <td class="py-2.5 px-2">${d.name}</td>
+                    <td class="py-2.5 px-2 font-orbitron text-cyan-300 font-bold">${d.score}</td>
+                    <td class="py-2.5 px-2 text-emerald-400">${d.acc}</td>
+                    <td class="py-2.5 px-2 text-pink-400">${d.combo}</td>
+                </tr>
+            `).join('');
+        }
+
+        /* AUDIO & CLASSROOM MODE CONTROLS */
+        function toggleAudio() {
+            sounds.isMuted = !sounds.isMuted;
+            sounds.applyVolumes();
+            document.getElementById('audio-icon').className = sounds.isMuted ? 'fa-solid fa-volume-xmark text-red-400' : 'fa-solid fa-volume-high text-cyan-400';
+        }
+
+        function toggleClassroomMode() {
+            sounds.isClassroomMode = !sounds.isClassroomMode;
+            sounds.applyVolumes();
+            const status = document.getElementById('classroom-status');
+            status.innerText = sounds.isClassroomMode ? 'ON' : 'OFF';
+            status.className = sounds.isClassroomMode ? 'text-yellow-400 font-bold' : 'text-slate-400';
+            document.getElementById('chk-classroom-mode').checked = sounds.isClassroomMode;
+        }
+
+        function toggleClassroomModeCheckbox(checked) {
+            sounds.isClassroomMode = checked;
+            sounds.applyVolumes();
+            document.getElementById('classroom-status').innerText = checked ? 'ON' : 'OFF';
+        }
+
+        function updateAudioSettings() {
+            const m = document.getElementById('slider-music').value;
+            const s = document.getElementById('slider-sfx').value;
+            sounds.musicVol = m / 100;
+            sounds.sfxVol = s / 100;
+            document.getElementById('volume-music-label').innerText = `${m}%`;
+            document.getElementById('volume-sfx-label').innerText = `${s}%`;
+            sounds.applyVolumes();
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-5 right-5 z-50 px-4 py-2 rounded-xl glass-panel-neon text-xs font-bold text-cyan-300 border border-cyan-400 shadow-xl transition transform scale-100';
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
+    </script>
+</body>
+</html>
